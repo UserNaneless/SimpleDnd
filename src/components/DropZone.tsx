@@ -1,15 +1,18 @@
-import { useContext, useEffect, useRef } from "react"
+import { useContext, useEffect, useRef, useState } from "react"
 import { DndContext, DndItem } from "./DndContext"
 
 type DropZoneProps = {
     children: React.ReactNode,
-    onDrop: (item: DndItem) => void
+    onDrop?: (item: DndItem) => void,
+    onOver?: (item: DndItem) => void
+
 }
 
-const DropZone = ({ children, onDrop }: DropZoneProps) => {
+const DropZone = ({ children, onDrop, onOver }: DropZoneProps) => {
 
     const dndContext = useContext(DndContext);
     const ref = useRef<HTMLDivElement | null>(null);
+    const [dropzoneId] = useState("id" + Math.random().toString(16).slice(5));
 
     useEffect(() => {
         if (ref.current)
@@ -18,19 +21,15 @@ const DropZone = ({ children, onDrop }: DropZoneProps) => {
                 data: {
                     dropzone: "zone"
                 },
-                onDrop
+                onDrop,
+                onOver,
+                id: dropzoneId
             });
 
         return () => {
 
             if (ref.current)
-                dndContext.removeDropzone({
-                    element: ref.current,
-                    data: {
-                        dropzone: "zone"
-                    },
-                    onDrop
-                });
+                dndContext.removeDropzone(dropzoneId);
         }
     }, [])
 
@@ -41,7 +40,9 @@ const DropZone = ({ children, onDrop }: DropZoneProps) => {
                 data: {
                     dropzone: "zone"
                 },
-                onDrop
+                onDrop,
+                onOver, 
+                id: dropzoneId
             })
     }, [onDrop])
 

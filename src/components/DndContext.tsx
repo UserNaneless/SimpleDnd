@@ -1,12 +1,14 @@
 import { createContext, useEffect, useState } from "react"
 
 export type DndItem = {
+    id: string,
     element: HTMLDivElement,
     data: object
 }
 
 export type DndZone = {
-    onDrop: (val: DndItem) => void
+    onDrop?: (val: DndItem) => void
+    onOver?: (val: DndItem) => void
 } & DndItem
 
 type DndContextType = {
@@ -15,15 +17,15 @@ type DndContextType = {
     drag: boolean,
     drop: () => void,
     activeDragElement: DndItem | null,
-    setActiveDragElement: (val: DndItem) => void,
+    setActiveDragElement: (val: string) => void,
     removeActiveDragElement: () => void,
     addDraggable: (val: DndItem) => void,
     addDropzone: (val: DndZone) => void,
-    removeDraggable: (val: DndItem) => void,
-    removeDropzone: (val: DndZone) => void,
+    removeDraggable: (id: string) => void,
+    removeDropzone: (id: string) => void,
     updateDropzone: (val: DndZone) => void,
     setDrag: (val: boolean) => void,
-    checkCollisions: (val: DndItem) => void
+    collideActiveWithItems: (val: DndItem) => void
 }
 
 const DndContext = createContext<DndContextType>({
@@ -40,7 +42,7 @@ const DndContext = createContext<DndContextType>({
     removeDropzone: () => { },
     updateDropzone: () => { },
     setDrag: () => { },
-    checkCollisions: () => { }
+    collideActiveWithItems: () => { }
 });
 
 type DndContextProps = {
@@ -66,9 +68,10 @@ const CDndContext = ({ children }: DndContextProps) => {
     const [activeDragElement, setActiveDragElement] = useState<DndItem | null>(null);
     const [drag, setDrag] = useState(false);
 
-    const checkCollisions = (val) => {
+    const collideActiveWithItems = (val: DndItem) => {
         dropzones.forEach(zone => {
             if (isCollision(val, zone)) {
+                zone?.onOver?.(val);
                 if (zone.element.children[0].style.background === "magenta")
                     zone.element.children[0].style.background = "red";
             } else {
@@ -96,26 +99,33 @@ const CDndContext = ({ children }: DndContextProps) => {
         drag,
         drop: () => {
             if (activeDragElement) {
-                dropzones.forEach(zone => {
+                for (let i = 0; i < dropzones.length; i++) {
+                    const zone = dropzones[i];
                     if (isCollision(activeDragElement, zone)) {
-                        zone.onDrop(activeDragElement);
+                        zone?.onDrop?.(activeDragElement);
+                        setActiveDragElement(null);
+                        return;
                     }
+                }
 
-                })
             }
         },
         activeDragElement,
-        setActiveDragElement: (val) => setActiveDragElement(val),
+        setActiveDragElement: (id) => {
+            const elem = draggable.find(item => item.id === id);
+            if (elem)
+                setActiveDragElement(elem)
+        },
         removeActiveDragElement: () => setActiveDragElement(null),
         addDraggable: val => setDraggable(list => [...list, val]),
         addDropzone: val => setDropzones(list => [...list, val]),
-        removeDraggable: val => setDraggable(list => list.filter(item => item.element != val.element)),
-        removeDropzone: val => setDropzones(list => list.filter(item => item.element != val.element)),
+        removeDraggable: id => setDraggable(list => list.filter(item => item.id != id)),
+        removeDropzone: id => setDropzones(list => list.filter(item => item.id != id)),
         updateDropzone: val => {
-            setDropzones(list => list.map(item => item.element === val.element ? val : item))
+            setDropzones(list => list.map(item => item.id === val.id ? val : item))
         },
         setDrag,
-        checkCollisions
+        collideActiveWithItems
     }}>
         {children}
     </DndContext.Provider>

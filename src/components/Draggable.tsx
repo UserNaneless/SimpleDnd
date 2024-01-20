@@ -2,16 +2,18 @@ import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { DndContext } from "./DndContext";
 
 type DraggableProps = {
-    children: React.ReactNode
+    children: React.ReactNode,
+    data?: object
 }
 
-const Draggable = ({ children }: DraggableProps) => {
+const Draggable = ({ children, data }: DraggableProps) => {
 
     const dndContext = useContext(DndContext);
 
     const [drag, setDrag] = useState(false);
     const [mouseRel, setMouseRel] = useState([0, 0]);
     const ref = useRef<HTMLDivElement | null>(null);
+    const [draggableId] = useState("id" + Math.random().toString(16).slice(4));
 
     const dragFunc = (e: MouseEvent) => {
         const elem = ref.current;
@@ -27,7 +29,7 @@ const Draggable = ({ children }: DraggableProps) => {
             const item = entries.find(item => item.attributeName === "style");
             if (item) {
                 if (ref.current && ref.current === dndContext.activeDragElement?.element)
-                    dndContext.checkCollisions(dndContext.activeDragElement);
+                    dndContext.collideActiveWithItems(dndContext.activeDragElement);
 
             }
             return;
@@ -38,19 +40,12 @@ const Draggable = ({ children }: DraggableProps) => {
         if (ref.current)
             dndContext.addDraggable({
                 element: ref.current,
-                data: {
-                    name: "123"
-                }
+                data: data || {},
+                id: draggableId
             });
         return () => {
             observer.disconnect();
-            if (ref.current)
-                dndContext.removeDraggable({
-                    element: ref.current,
-                    data: {
-                        name: "123"
-                    }
-                });
+            dndContext.removeDraggable(draggableId);
         }
     }, [])
 
@@ -66,12 +61,7 @@ const Draggable = ({ children }: DraggableProps) => {
             if (drag) {
                 ref.current.style.position = "fixed";
 
-                dndContext.setActiveDragElement({
-                    element: ref.current,
-                    data: {
-                        name: "123"
-                    }
-                });
+                dndContext.setActiveDragElement(draggableId);
 
                 const dragFuncToAssign = (e: MouseEvent) => {
                     dragFunc(e);
@@ -92,7 +82,6 @@ const Draggable = ({ children }: DraggableProps) => {
                 const rect = ref.current.getBoundingClientRect();
                 ref.current.style.left = rect.x + "px";
                 ref.current.style.top = rect.y + "px";
-                console.log(rect);
                 dndContext.drop();
                 observer.disconnect();
                 // ref.current.style.position = "relative";
