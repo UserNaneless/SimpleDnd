@@ -1,0 +1,30 @@
+* {
+    box-sizing: border-box;
+}
+
+.drag_div {
+    padding: 12px 16px;
+    background-color: cyan;
+    width: 200px;
+    height: 100px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: black;
+    font-size: 24px;
+    cursor: grab;
+    user-select: none;
+}
+
+.drop_div {
+    background: magenta;
+    padding: 12px 16px;
+    width: 450px;
+    height: 340px;
+    border-radius: 12px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 24px;
+}
