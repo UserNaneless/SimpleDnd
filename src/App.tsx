@@ -10,7 +10,6 @@ function App() {
 
                 <SortableList />
 
-
             </CDndContext>
         </>
     )

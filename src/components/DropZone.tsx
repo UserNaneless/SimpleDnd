@@ -1,9 +1,9 @@
 import { useContext, useEffect, useRef, useState } from "react"
-import { DndContext, DndItem } from "./DndContext"
+import { DndContext, DndItem, DndZone } from "./DndContext"
 
 type DropZoneProps = {
     children: React.ReactNode,
-    onDrop?: (item: DndItem) => void,
+    onDrop?: (dropzone: DndZone, item: DndItem, overItem: DndItem | null, others: DndItem[]) => void,
     onOver?: (item: DndItem) => void
 
 }
@@ -41,10 +41,10 @@ const DropZone = ({ children, onDrop, onOver }: DropZoneProps) => {
                     dropzone: "zone"
                 },
                 onDrop,
-                onOver, 
+                onOver,
                 id: dropzoneId
             })
-    }, [onDrop])
+    }, [onDrop, onOver])
 
     return <div className="wrapper" style={{ width: "fit-content" }} ref={ref}>
         {children}

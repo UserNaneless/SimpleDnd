@@ -1,12 +1,21 @@
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
-import { DndContext } from "./DndContext";
+import { DndContext, DndItem } from "./DndContext";
+
+type StartStyles = {
+    width: string,
+    height: string,
+    position: string
+}
 
 type DraggableProps = {
     children: React.ReactNode,
-    data?: object
+    data?: object,
+    onOver?: (itemOver: DndItem, dragItem: DndItem, others: DndItem[]) => void,
+    onDrop?: (dragItem: DndItem, others: DndItem[]) => void,
+    reset?: (cur: HTMLDivElement) => void,
 }
 
-const Draggable = ({ children, data }: DraggableProps) => {
+const Draggable = ({ children, data, onOver, onDrop, reset }: DraggableProps) => {
 
     const dndContext = useContext(DndContext);
 
@@ -14,6 +23,7 @@ const Draggable = ({ children, data }: DraggableProps) => {
     const [mouseRel, setMouseRel] = useState([0, 0]);
     const ref = useRef<HTMLDivElement | null>(null);
     const [draggableId] = useState("id" + Math.random().toString(16).slice(4));
+    const [startStyles, setStartStyles] = useState<StartStyles>();
 
     const dragFunc = (e: MouseEvent) => {
         const elem = ref.current;
@@ -41,7 +51,9 @@ const Draggable = ({ children, data }: DraggableProps) => {
             dndContext.addDraggable({
                 element: ref.current,
                 data: data || {},
-                id: draggableId
+                id: draggableId,
+                onOver,
+                onDrop
             });
         return () => {
             observer.disconnect();
@@ -57,9 +69,31 @@ const Draggable = ({ children, data }: DraggableProps) => {
     }, [observer])
 
     useEffect(() => {
+        if (data && onOver && ref.current) {
+            dndContext.updateDraggable(
+                {
+                    element: ref.current,
+                    data: data || {},
+                    id: draggableId,
+                    onOver,
+                    onDrop
+                });
+        }
+    }, [data, onOver]);
+
+    useEffect(() => {
         if (ref.current)
             if (drag) {
+                dndContext.setDrag(true);
+                setStartStyles({
+                    width: ref.current.style.width,
+                    height: ref.current.style.height,
+                    position: ref.current.style.position
+                });
+                const rect = ref.current.getBoundingClientRect();
+                ref.current.style.width = rect.width + "px";
                 ref.current.style.position = "fixed";
+                ref.current.style.zIndex = 10000;
 
                 dndContext.setActiveDragElement(draggableId);
 
@@ -79,14 +113,25 @@ const Draggable = ({ children, data }: DraggableProps) => {
                     attributes: true
                 });
             } else {
-                const rect = ref.current.getBoundingClientRect();
-                ref.current.style.left = rect.x + "px";
-                ref.current.style.top = rect.y + "px";
                 dndContext.drop();
                 observer.disconnect();
+                if (startStyles) {
+                    const rect = ref.current.getBoundingClientRect();
+                    ref.current.style.left = rect.x + "px";
+                    ref.current.style.top = rect.y + "px";
+                    ref.current.style.zIndex = 0;
+                    Object.keys(startStyles).forEach(key => {
+                        ref.current.style[key] = startStyles[key];
+                    });
+                }
                 // ref.current.style.position = "relative";
             }
     }, [drag])
+
+    useEffect(() => {
+        if (ref.current)
+            reset?.(ref.current);
+    }, [dndContext.drag])
 
     return <div ref={ref} className="wrapper" style={{
         width: "fit-content"
