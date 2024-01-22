@@ -3,6 +3,7 @@ import { createContext, useEffect, useState } from "react"
 export type DndItem = {
     id: string,
     element: HTMLDivElement,
+    shadowElement: HTMLDivElement | null,
     data: {
         [x: string]: any
     },
@@ -11,9 +12,9 @@ export type DndItem = {
 }
 
 export type DndZone = {
-    onDrop?: (dropzone: DndZone, val: DndItem, overItem: DndItem | null, other: DndItem[]) => void
+    onDrop?: (dropzone: DndZone, item: DndItem, overItem: DndItem | null, other: DndItem[]) => void
     onOver?: (val: DndItem) => void
-} & DndItem
+} & Omit<DndItem, "onDrop" | "onOver" | "shadowElement">
 
 type DndContextType = {
     draggable: DndItem[]
@@ -55,9 +56,9 @@ type DndContextProps = {
     children: React.ReactNode
 }
 
-const THRESHOLD = 15;
+const THRESHOLD = 5;
 
-const isCollision = (a: DndItem, b: DndItem) => {
+const isCollision = (a: DndItem, b: DndItem | DndZone) => {
     const aRect = a.element.getBoundingClientRect();
     const bRect = b.element.getBoundingClientRect();
 
@@ -102,19 +103,20 @@ const CDndContext = ({ children }: DndContextProps) => {
         drag,
         drop: () => {
             if (activeDragElement) {
-                activeDragElement.onDrop?.(activeDragElement, draggable.filter(fItem => fItem.id != activeDragElement.id));
                 for (let i = 0; i < dropzones.length; i++) {
                     const zone = dropzones[i];
                     if (isCollision(activeDragElement, zone)) {
                         const overElement = draggable.find(item =>
                             isCollision(item, activeDragElement) && item.id != activeDragElement.id) || null
                         zone?.onDrop?.(zone, activeDragElement, overElement, draggable.filter(item => item.id != activeDragElement.id && item.id != overElement?.id));
+                        activeDragElement.onDrop?.(activeDragElement, draggable.filter(fItem => fItem.id != activeDragElement.id));
                         setActiveDragElement(null);
                         setDrag(false);
                         return;
                     }
                 }
 
+                activeDragElement.onDrop?.(activeDragElement, draggable.filter(fItem => fItem.id != activeDragElement.id));
                 setActiveDragElement(null);
                 setDrag(false);
             }
