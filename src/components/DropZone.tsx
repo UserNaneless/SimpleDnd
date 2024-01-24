@@ -18,6 +18,7 @@ const DropZone = ({ children, onDrop, onOver }: DropZoneProps) => {
         if (ref.current)
             dndContext.addDropzone({
                 element: ref.current,
+                dragBeginRect: ref.current.getBoundingClientRect(),
                 data: {
                     dropzone: "zone"
                 },
@@ -37,6 +38,7 @@ const DropZone = ({ children, onDrop, onOver }: DropZoneProps) => {
         if (ref.current)
             dndContext.updateDropzone({
                 element: ref.current,
+                dragBeginRect: ref.current.getBoundingClientRect(),
                 data: {
                     dropzone: "zone"
                 },

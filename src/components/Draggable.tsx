@@ -40,6 +40,8 @@ const Draggable = ({ children, data, onOver, onDrop, onDragStart, reset }: Dragg
     const [draggableId] = useState("id" + Math.random().toString(16).slice(4));
     const [startStyles, setStartStyles] = useState<StartStyles>();
 
+    console.log("Man is rerendering")
+
     const dragStart = (e: React.TouchEvent | React.MouseEvent) => {
         setDrag(true);
         const elem = ref.current;
@@ -83,6 +85,7 @@ const Draggable = ({ children, data, onOver, onDrop, onDragStart, reset }: Dragg
             dndContext.addDraggable({
                 element: ref.current,
                 shadowElement: shadowRef.current,
+                dragBeginRect: ref.current.getBoundingClientRect(),
                 data: data || {},
                 id: draggableId,
                 onOver,
@@ -103,12 +106,9 @@ const Draggable = ({ children, data, onOver, onDrop, onDragStart, reset }: Dragg
 
     useEffect(() => {
         if (data && onOver && ref.current) {
-            dndContext.updateDraggable(
+            dndContext.updateDraggable(draggableId,
                 {
-                    element: ref.current,
-                    shadowElement: shadowRef.current,
                     data: data || {},
-                    id: draggableId,
                     onOver,
                     onDrop
                 });
@@ -123,6 +123,7 @@ const Draggable = ({ children, data, onOver, onDrop, onDragStart, reset }: Dragg
                 onDragStart?.({
                     element: ref.current,
                     shadowElement: shadowRef.current,
+                    dragBeginRect: ref.current.getBoundingClientRect(),
                     data: data || {},
                     id: draggableId,
                     onOver,
@@ -141,6 +142,7 @@ const Draggable = ({ children, data, onOver, onDrop, onDragStart, reset }: Dragg
                 dndContext.setActiveDragElement(draggableId);
 
                 const dragFuncToAssign = (e: MouseEvent | TouchEvent) => {
+                    e.preventDefault();
                     dragFunc(e);
                 }
 
@@ -149,10 +151,10 @@ const Draggable = ({ children, data, onOver, onDrop, onDragStart, reset }: Dragg
                     window.removeEventListener("mousemove", dragFuncToAssign);
                     window.removeEventListener("touchmove", dragFuncToAssign);
                     window.removeEventListener("mouseup", clearDrag);
-                    window.addEventListener("touchend", clearDrag);
+                    window.removeEventListener("touchend", clearDrag);
                 }
-                window.addEventListener("mousemove", dragFuncToAssign);
-                window.addEventListener("touchmove", dragFuncToAssign);
+                window.addEventListener("mousemove", dragFuncToAssign, { passive: false });
+                window.addEventListener("touchmove", dragFuncToAssign), { passive: false };
                 window.addEventListener("mouseup", clearDrag);
                 window.addEventListener("touchend", clearDrag);
 
@@ -178,8 +180,16 @@ const Draggable = ({ children, data, onOver, onDrop, onDragStart, reset }: Dragg
     }, [drag])
 
     useEffect(() => {
-        if (ref.current && !dndContext.drag)
-            reset?.(ref.current);
+        if (ref.current) {
+            if (dndContext.drag)
+                if (dndContext.drag) {
+                    dndContext.updateDraggable(draggableId, {
+                        dragBeginRect: ref.current.getBoundingClientRect()
+                    });
+                }
+                else
+                    reset?.(ref.current);
+        }
     }, [dndContext.drag])
 
     return <>
@@ -205,7 +215,9 @@ const Draggable = ({ children, data, onOver, onDrop, onDragStart, reset }: Dragg
         <div ref={shadowRef} className="wrapper" style={{
             width: "fit-content",
             transition: "transform .2s",
-            position: "fixed"
+            position: "fixed",
+            zIndex: 1,
+            display: drag ? "block" : "none"
         }}>
             {
                 (typeof children === "function") ?

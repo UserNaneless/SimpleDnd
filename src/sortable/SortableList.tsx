@@ -33,58 +33,22 @@ const isCollision = (a: DndItem, b: DndItem, lastItem: boolean) => {
 
 const SortableList = () => {
 
-    const [items, setItems] = useState([1, 2, 3, 4, 5, 6]);
-    // const [potentialPlace, setPotentialPlace] = useState(0);
+    const [items, setItems] = useState([1, 2]);
+    const [potentialPlace, setPotentialPlace] = useState(0);
+
+    useEffect(() => {
+        // console.log(potentialPlace);
+    }, [potentialPlace])
 
     return <DropZone onDrop={(zone, item, over, others) => {
         setItems(i => {
             let copy = [...i];
-            /* console.log(potentialPlace);
-            if (potentialPlace === items.length - 1) {
-                const zoneRect = zone.element.getBoundingClientRect();
-                const itemRect = item.element.getBoundingClientRect();
-                if (zoneRect.y + zoneRect.height > itemRect.y) {
-                    return [...copy.filter(fItem => fItem != item.data.value), item.data.value];
-                }
-            }
-            console.log(item.data.index);
 
-            const slice = copy.slice(potentialPlace).filter(fItem => fItem != item.data.value);
-            console.log("Slice: ", slice);
-            copy.splice(potentialPlace);
-            copy = copy.filter(fItem => fItem != item.data.value)
-            console.log("Splice: ", copy);
-            copy.push(item.data.value);
-            console.log("Push", copy);
-            return [...copy, ...slice]; */
-            if (over) {
-                const slice = copy.slice(over.data.index).filter(fItem => fItem != item.data.value);
-                copy.splice(over.data.index);
-                copy = copy.filter(fItem => fItem != item.data.value)
-                copy.push(item.data.value);
-                return [...copy, ...slice];
-            }
-            for (let j = 0; j < items.length; j++) {
-                const other = others.find(fItem => fItem.data.index === j);
-                if (other) {
-                    if (isCollision(item, other, false)) {
-                        const slice = copy.slice(other.data.index).filter(fItem => fItem != item.data.value);
-                        copy.splice(other.data.index);
-                        copy = copy.filter(fItem => fItem != item.data.value)
-                        copy.push(item.data.value);
-                        return [...copy, ...slice];
-                    }
+            console.log(potentialPlace);
+            copy = copy.map(fItem => fItem === item.data.value ? -1 : fItem);
+            copy.splice(potentialPlace + Number(item.data.index < potentialPlace), 0, item.data.value);
+            return copy.filter(fItem => fItem != -1);
 
-                    if (j === items.length - 1) {
-                        const zoneRect = zone.element.getBoundingClientRect();
-                        const itemRect = item.element.getBoundingClientRect();
-                        if (isCollision(item, other, true) || zoneRect.y + zoneRect.height > itemRect.y) {
-                            return [...copy.filter(fItem => fItem != item.data.value), item.data.value];
-                        }
-                    }
-                }
-            }
-            return copy
         });
     }}>
         <div className="list" style={{
@@ -112,6 +76,7 @@ const SortableList = () => {
                         });
                         if (curr.shadowElement) {
                             const shadow = curr.shadowElement;
+                            shadow.style.transition = "transform 0s";
                             shadow.style.transform = "translateY(" + curr.data.index * 50 + "px)";
                             shadow.style.opacity = ".4";
                         }
@@ -144,8 +109,12 @@ const SortableList = () => {
                             else
                                 other.element.style.transform = "translateY(0)";
                         });
+
+                        setPotentialPlace(higherThan);
+
                         if (curr.shadowElement) {
                             const shadow = curr.shadowElement;
+                            shadow.style.transition = "transform .2s";
                             shadow.style.transform = "translateY(" + higherThan * 50 + "px)";
                             shadow.style.opacity = ".4";
                         }
@@ -165,10 +134,11 @@ const SortableList = () => {
                                 justifyContent: "space-around",
                                 background: "cyan",
                                 borderRadius: 12,
+                                touchAction: "none",
                             }} className="list_item">
                                 {item}
                                 <div onMouseDown={dragStart} onTouchStart={dragStart} className="dragger">
-                                    |-|
+                                    ::
                                 </div>
                             </div>
                         }

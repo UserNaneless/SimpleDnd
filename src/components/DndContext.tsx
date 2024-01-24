@@ -4,12 +4,15 @@ export type DndItem = {
     id: string,
     element: HTMLDivElement,
     shadowElement: HTMLDivElement | null,
+    dragBeginRect: DOMRect,
     data: {
         [x: string]: any
     },
     onOver?: (overItem: DndItem, dragItem: DndItem, others: DndItem[]) => void,
     onDrop?: (dragItem: DndItem, other: DndItem[]) => void
 }
+
+export type DndItemUpdater = Partial<DndItem>;
 
 export type DndZone = {
     onDrop?: (dropzone: DndZone, item: DndItem, overItem: DndItem | null, other: DndItem[]) => void
@@ -28,7 +31,7 @@ type DndContextType = {
     addDropzone: (val: DndZone) => void,
     removeDraggable: (id: string) => void,
     removeDropzone: (id: string) => void,
-    updateDraggable: (val: DndItem) => void,
+    updateDraggable: (id: string, val: DndItemUpdater) => void,
     updateDropzone: (val: DndZone) => void,
     setDrag: (val: boolean) => void,
     collideActiveWithItems: (val: DndItem) => void
@@ -53,15 +56,16 @@ const DndContext = createContext<DndContextType>({
 });
 
 type DndContextProps = {
-    children: React.ReactNode
+    children: React.ReactNode,
+    useRectsBeforeDrag?: boolean
 }
 
 const THRESHOLD = 5;
 
-const isCollision = (a: DndItem, b: DndItem | DndZone) => {
+const isCollisionWithParam = (a: DndItem, b: DndItem | DndZone, useBeginRects?: boolean) => {
     const aRect = a.element.getBoundingClientRect();
-    const bRect = b.element.getBoundingClientRect();
-
+    const bRect = useBeginRects ? b.dragBeginRect : b.element.getBoundingClientRect();
+    
     return !(
         ((aRect.top + aRect.height - THRESHOLD) < (bRect.top)) ||
         (aRect.top > (bRect.top + bRect.height - THRESHOLD)) ||
@@ -70,7 +74,9 @@ const isCollision = (a: DndItem, b: DndItem | DndZone) => {
     );
 }
 
-const CDndContext = ({ children }: DndContextProps) => {
+const CDndContext = ({ children, useRectsBeforeDrag }: DndContextProps) => {
+
+    const isCollision = (a: DndItem, b: DndItem | DndZone) => isCollisionWithParam(a, b, useRectsBeforeDrag);
 
     const [draggable, setDraggable] = useState<DndItem[]>([]);
     const [dropzones, setDropzones] = useState<DndZone[]>([]);
@@ -107,7 +113,7 @@ const CDndContext = ({ children }: DndContextProps) => {
                     const zone = dropzones[i];
                     if (isCollision(activeDragElement, zone)) {
                         const overElement = draggable.find(item =>
-                            isCollision(item, activeDragElement) && item.id != activeDragElement.id) || null
+                            isCollision(activeDragElement, item) && item.id != activeDragElement.id) || null
                         zone?.onDrop?.(zone, activeDragElement, overElement, draggable.filter(item => item.id != activeDragElement.id && item.id != overElement?.id));
                         activeDragElement.onDrop?.(activeDragElement, draggable.filter(fItem => fItem.id != activeDragElement.id));
                         setActiveDragElement(null);
@@ -132,8 +138,11 @@ const CDndContext = ({ children }: DndContextProps) => {
         addDropzone: val => setDropzones(list => [...list, val]),
         removeDraggable: id => setDraggable(list => list.filter(item => item.id != id)),
         removeDropzone: id => setDropzones(list => list.filter(item => item.id != id)),
-        updateDraggable: val => {
-            setDraggable(list => list.map(item => item.id === val.id ? val : item))
+        updateDraggable: (id, data) => {
+            setDraggable(list => list.map(item => item.id === id ? {
+                ...item,
+                ...data
+            } : item))
         },
         updateDropzone: val => {
             setDropzones(list => list.map(item => item.id === val.id ? val : item))
