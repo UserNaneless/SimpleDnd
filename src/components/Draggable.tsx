@@ -13,7 +13,9 @@ type DraggableProps = {
     data?: object,
     onOver?: (itemOver: DndItem, dragItem: DndItem, others: DndItem[]) => void,
     onDrop?: (dragItem: DndItem, others: DndItem[]) => void,
-    onDragStart?: (dragItem: DndItem, shadowItem: HTMLDivElement | null, others: DndItem[]) => void
+    onDragStart?: (dragItem: DndItem, shadowItem: HTMLDivElement | null, others: DndItem[]) => void,
+    onEnter?: (to: DndItem) => void,
+    onLeave?: (from: DndItem) => void,
     reset?: (cur: HTMLDivElement) => void,
 }
 
@@ -29,7 +31,7 @@ const getCoords = (e: MouseEvent | TouchEvent | React.MouseEvent | React.TouchEv
     return [x, y];
 }
 
-const Draggable = ({ children, data, onOver, onDrop, onDragStart, reset }: DraggableProps) => {
+const Draggable = ({ children, data, onOver, onDrop, onDragStart, onEnter, onLeave, reset }: DraggableProps) => {
 
     const dndContext = useContext(DndContext);
 
@@ -39,8 +41,7 @@ const Draggable = ({ children, data, onOver, onDrop, onDragStart, reset }: Dragg
     const shadowRef = useRef<HTMLDivElement | null>(null);
     const [draggableId] = useState("id" + Math.random().toString(16).slice(4));
     const [startStyles, setStartStyles] = useState<StartStyles>();
-
-    console.log("Man is rerendering")
+    const [pos, setPos] = useState([0, 0]);
 
     const dragStart = (e: React.TouchEvent | React.MouseEvent) => {
         setDrag(true);
@@ -62,23 +63,22 @@ const Draggable = ({ children, data, onOver, onDrop, onDragStart, reset }: Dragg
         const elem = ref.current;
         if (elem) {
             const [x, y] = getCoords(e);
-            elem.style.left = x - mouseRel[0] + "px";
-            elem.style.top = y - mouseRel[1] + "px";
+            setPos([x - mouseRel[0], y - mouseRel[1]]);
         }
     }
 
-    const observer = useMemo(() => {
-        return new MutationObserver((entries, obs) => {
-            if (!dndContext.activeDragElement) obs.disconnect();
-            const item = entries.find(item => item.attributeName === "style");
-            if (item) {
-                if (ref.current && ref.current === dndContext.activeDragElement?.element)
-                    dndContext.collideActiveWithItems(dndContext.activeDragElement);
-
-            }
-            return;
-        });
-    }, [dndContext.activeDragElement])
+    // const observer = useMemo(() => {
+    //     return new MutationObserver((entries, obs) => {
+    //         if (!dndContext.activeDragElement) obs.disconnect();
+    //         const item = entries.find(item => item.attributeName === "style");
+    //         if (item) {
+    //             if (ref.current && ref.current === dndContext.activeDragElement?.element)
+    //                 dndContext.collideActiveWithItems();
+    //
+    //         }
+    //         return;
+    //     });
+    // }, [dndContext.activeDragElement])
 
     useEffect(() => {
         if (ref.current)
@@ -89,20 +89,14 @@ const Draggable = ({ children, data, onOver, onDrop, onDragStart, reset }: Dragg
                 data: data || {},
                 id: draggableId,
                 onOver,
-                onDrop
+                onDrop,
+                onLeave,
+                onEnter
             });
         return () => {
-            observer.disconnect();
             dndContext.removeDraggable(draggableId);
         }
     }, [])
-
-    useEffect(() => {
-        if (ref.current)
-            observer.observe(ref.current, {
-                attributes: true
-            });
-    }, [observer])
 
     useEffect(() => {
         if (data && onOver && ref.current) {
@@ -110,10 +104,12 @@ const Draggable = ({ children, data, onOver, onDrop, onDragStart, reset }: Dragg
                 {
                     data: data || {},
                     onOver,
-                    onDrop
+                    onDrop,
+                    onLeave,
+                    onEnter
                 });
         }
-    }, [data, onOver, onDrop]);
+    }, [data, onOver, onDrop, onLeave, onEnter]);
 
     useEffect(() => {
         if (ref.current)
@@ -127,7 +123,8 @@ const Draggable = ({ children, data, onOver, onDrop, onDragStart, reset }: Dragg
                     data: data || {},
                     id: draggableId,
                     onOver,
-                    onDrop
+                    onDrop,
+                    itemsInside: []
                 }, shadowRef.current, dndContext.draggable.filter(fItem => fItem.id != draggableId));
                 setStartStyles({
                     width: ref.current.style.width,
@@ -157,13 +154,8 @@ const Draggable = ({ children, data, onOver, onDrop, onDragStart, reset }: Dragg
                 window.addEventListener("touchmove", dragFuncToAssign), { passive: false };
                 window.addEventListener("mouseup", clearDrag);
                 window.addEventListener("touchend", clearDrag);
-
-                observer.observe(ref.current, {
-                    attributes: true
-                });
             } else {
                 dndContext.drop();
-                observer.disconnect();
                 if (startStyles) {
                     const rect = ref.current.getBoundingClientRect();
                     ref.current.style.left = rect.x + "px";
@@ -192,9 +184,15 @@ const Draggable = ({ children, data, onOver, onDrop, onDragStart, reset }: Dragg
         }
     }, [dndContext.drag])
 
+    useEffect(() => {
+        if (drag) dndContext.collideActiveWithItems();
+    }, [pos])
+
     return <>
         <div ref={ref} className="wrapper" style={{
-            width: "fit-content"
+            width: "fit-content",
+            top: pos[1],
+            left: pos[0]
         }}
 
             onTouchStart={e => {

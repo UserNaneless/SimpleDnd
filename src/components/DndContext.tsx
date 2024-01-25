@@ -9,7 +9,10 @@ export type DndItem = {
         [x: string]: any
     },
     onOver?: (overItem: DndItem, dragItem: DndItem, others: DndItem[]) => void,
-    onDrop?: (dragItem: DndItem, other: DndItem[]) => void
+    onDrop?: (dragItem: DndItem, other: DndItem[]) => void,
+    onEnter?: (to: DndItem) => void,
+    onLeave?: (from: DndItem) => void,
+    itemsInside: string[]
 }
 
 export type DndItemUpdater = Partial<DndItem>;
@@ -27,14 +30,14 @@ type DndContextType = {
     activeDragElement: DndItem | null,
     setActiveDragElement: (val: string) => void,
     removeActiveDragElement: () => void,
-    addDraggable: (val: DndItem) => void,
+    addDraggable: (val: Omit<DndItem, "itemsInside">) => void,
     addDropzone: (val: DndZone) => void,
     removeDraggable: (id: string) => void,
     removeDropzone: (id: string) => void,
     updateDraggable: (id: string, val: DndItemUpdater) => void,
     updateDropzone: (val: DndZone) => void,
     setDrag: (val: boolean) => void,
-    collideActiveWithItems: (val: DndItem) => void
+    collideActiveWithItems: () => void
 }
 
 const DndContext = createContext<DndContextType>({
@@ -65,7 +68,7 @@ const THRESHOLD = 5;
 const isCollisionWithParam = (a: DndItem, b: DndItem | DndZone, useBeginRects?: boolean) => {
     const aRect = a.element.getBoundingClientRect();
     const bRect = useBeginRects ? b.dragBeginRect : b.element.getBoundingClientRect();
-    
+
     return !(
         ((aRect.top + aRect.height - THRESHOLD) < (bRect.top)) ||
         (aRect.top > (bRect.top + bRect.height - THRESHOLD)) ||
@@ -83,25 +86,59 @@ const CDndContext = ({ children, useRectsBeforeDrag }: DndContextProps) => {
     const [activeDragElement, setActiveDragElement] = useState<DndItem | null>(null);
     const [drag, setDrag] = useState(false);
 
-    const collideActiveWithItems = (val: DndItem) => {
+    const collideActiveWithItems = (val: DndItem | null) => {
+        if (!val) return;
         dropzones.forEach(zone => {
             if (isCollision(val, zone)) {
                 zone?.onOver?.(val);
             }
         });
 
+        let overItemOvered = false;
+
         for (let i = 0; i < draggable.length; i++) {
             const item = draggable[i];
             if (item.id != val.id && isCollision(val, item)) {
-                item?.onOver?.(item, val, draggable.filter(fItem => fItem.id != val.id));
-                return;
+
+                if (!item.itemsInside.includes(val.id)) {
+                    setDraggable(drgs => {
+                        return drgs.map(i => {
+
+                            if (i.id != item.id)
+                                return i
+                            return {
+                                ...i,
+                                itemsInside: [...i.itemsInside, val.id]
+                            }
+                        })
+                    });
+                    item.onEnter?.(item);
+                }
+
+                if (!overItemOvered) {
+                    item?.onOver?.(item, val, draggable.filter(fItem => fItem.id != val.id));
+                    overItemOvered = true;
+                }
+            } else {
+                if (item.itemsInside.includes(val.id)) {
+                    setDraggable(drgs => drgs.map(i => {
+                        if (i.id != item.id)
+                            return i
+
+                        return {
+                            ...i,
+                            itemsInside: i.itemsInside.filter(i => i != val.id)
+                        }
+                    }));
+                    item.onLeave?.(item);
+                }
             }
         }
     }
 
     useEffect(() => {
-        // console.log(draggable, dropzones, activeDragElement);
-    }, [draggable, dropzones, activeDragElement])
+        // console.log(draggable);
+    }, [draggable])
 
     return <DndContext.Provider value={{
         draggable,
@@ -134,7 +171,10 @@ const CDndContext = ({ children, useRectsBeforeDrag }: DndContextProps) => {
                 setActiveDragElement(elem)
         },
         removeActiveDragElement: () => setActiveDragElement(null),
-        addDraggable: val => setDraggable(list => [...list, val]),
+        addDraggable: val => setDraggable(list => [...list, {
+            ...val,
+            itemsInside: []
+        }]),
         addDropzone: val => setDropzones(list => [...list, val]),
         removeDraggable: id => setDraggable(list => list.filter(item => item.id != id)),
         removeDropzone: id => setDropzones(list => list.filter(item => item.id != id)),
@@ -148,7 +188,7 @@ const CDndContext = ({ children, useRectsBeforeDrag }: DndContextProps) => {
             setDropzones(list => list.map(item => item.id === val.id ? val : item))
         },
         setDrag,
-        collideActiveWithItems
+        collideActiveWithItems: () => collideActiveWithItems(activeDragElement)
     }}>
         {children}
     </DndContext.Provider>

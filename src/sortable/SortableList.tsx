@@ -65,6 +65,10 @@ const SortableList = () => {
             {
                 items.map((item, i) => <Draggable key={item}
 
+                    onEnter={i => i.element.style.background = "red"}
+
+                    onLeave={i => i.element.style.background = "blue"}
+
                     onDragStart={(curr, _, others) => {
                         others.forEach(other => {
                             const currRect = curr.element.getBoundingClientRect();
