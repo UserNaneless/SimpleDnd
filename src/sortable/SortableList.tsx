@@ -1,35 +1,7 @@
 import { useEffect, useState } from "react";
 import Draggable from "../components/Draggable";
 import DropZone from "../components/DropZone";
-import { DndItem } from "../components/DndContext";
 
-const THRESHOLD = 5;
-
-const isCollision = (a: DndItem, b: DndItem, lastItem: boolean) => {
-    const aRect = a.element.getBoundingClientRect();
-    const bRect = b.element.getBoundingClientRect();
-
-    const bTransform = b.element.style.transform;
-    let y = 0;
-    let lastHelper = 0;
-
-    if (!bTransform.includes("(0)")) {
-        const computed = window.getComputedStyle(b.element).transform.split(",");
-        y = Number(computed[computed.length - 1].slice(0, computed.indexOf(")")));
-
-    }
-
-    if (lastItem) {
-        lastHelper += 50;
-        y = 0
-    }
-    return !(
-        ((aRect.top + aRect.height - THRESHOLD) < (bRect.top - y)) ||
-        (aRect.top > (bRect.top - y + bRect.height + lastHelper - THRESHOLD)) ||
-        ((aRect.left + aRect.width - THRESHOLD) < bRect.left) ||
-        (aRect.left > (bRect.left + bRect.width - THRESHOLD))
-    );
-}
 
 const SortableList = () => {
 
@@ -40,17 +12,18 @@ const SortableList = () => {
         // console.log(potentialPlace);
     }, [potentialPlace])
 
-    return <DropZone onDrop={(zone, item, over, others) => {
-        setItems(i => {
-            let copy = [...i];
+    return <DropZone
+        onDrop={(_, item) => {
+            setItems(i => {
+                let copy = [...i];
 
-            console.log(potentialPlace);
-            copy = copy.map(fItem => fItem === item.data.value ? -1 : fItem);
-            copy.splice(potentialPlace + Number(item.data.index < potentialPlace), 0, item.data.value);
-            return copy.filter(fItem => fItem != -1);
+                console.log(potentialPlace);
+                copy = copy.map(fItem => fItem === item.data.value ? -1 : fItem);
+                copy.splice(potentialPlace + Number(item.data.index < potentialPlace), 0, item.data.value);
+                return copy.filter(fItem => fItem != -1);
 
-        });
-    }}>
+            });
+        }}>
         <div className="list" style={{
             background: "magenta",
             width: 400,
@@ -64,10 +37,6 @@ const SortableList = () => {
         }}>
             {
                 items.map((item, i) => <Draggable key={item}
-
-                    onEnter={i => i.element.style.background = "red"}
-
-                    onLeave={i => i.element.style.background = "blue"}
 
                     onDragStart={(curr, _, others) => {
                         others.forEach(other => {

@@ -19,8 +19,12 @@ export type DndItemUpdater = Partial<DndItem>;
 
 export type DndZone = {
     onDrop?: (dropzone: DndZone, item: DndItem, overItem: DndItem | null, other: DndItem[]) => void
-    onOver?: (val: DndItem) => void
-} & Omit<DndItem, "onDrop" | "onOver" | "shadowElement">
+    onOver?: (val: DndItem) => void,
+    onEnter?: (zone: DndZone, item: DndItem) => void,
+    onLeave?: (zone: DndZone, item: DndItem) => void,
+} & Omit<DndItem, "onDrop" | "onOver" | "shadowElement" | "onEnter" | "onLeave">
+
+export type DndZoneUpdater = Partial<Omit<DndZone, "itemsInside">>;
 
 type DndContextType = {
     draggable: DndItem[]
@@ -31,11 +35,11 @@ type DndContextType = {
     setActiveDragElement: (val: string) => void,
     removeActiveDragElement: () => void,
     addDraggable: (val: Omit<DndItem, "itemsInside">) => void,
-    addDropzone: (val: DndZone) => void,
+    addDropzone: (val: Omit<DndZone, "itemsInside">) => void,
     removeDraggable: (id: string) => void,
     removeDropzone: (id: string) => void,
     updateDraggable: (id: string, val: DndItemUpdater) => void,
-    updateDropzone: (val: DndZone) => void,
+    updateDropzone: (id: string, val: DndZoneUpdater) => void,
     setDrag: (val: boolean) => void,
     collideActiveWithItems: () => void
 }
@@ -90,7 +94,40 @@ const CDndContext = ({ children, useRectsBeforeDrag }: DndContextProps) => {
         if (!val) return;
         dropzones.forEach(zone => {
             if (isCollision(val, zone)) {
+                if (!zone.itemsInside.includes(val.id)) {
+                    setDropzones(zones => {
+                        return zones.map(i => {
+                            if (zone.id != i.id) {
+                                return i;
+                            }
+
+                            return {
+                                ...i,
+                                itemsInside: [...i.itemsInside, val.id]
+                            }
+                        })
+                    })
+
+                    zone.onEnter?.(zone);
+                }
                 zone?.onOver?.(val);
+            } else {
+                if (zone.itemsInside.includes(val.id)) {
+                    setDropzones(zones => {
+                        return zones.map(i => {
+                            if (zone.id != i.id) {
+                                return i;
+                            }
+
+                            return {
+                                ...i,
+                                itemsInside: i.itemsInside.filter(id => id != val.id)
+                            }
+                        })
+                    })
+
+                    zone.onLeave?.(zone);
+                }
             }
         });
 
@@ -137,7 +174,14 @@ const CDndContext = ({ children, useRectsBeforeDrag }: DndContextProps) => {
     }
 
     useEffect(() => {
-        // console.log(draggable);
+        setDropzones(zones => {
+            return zones.map(zone => {
+                return {
+                    ...zone,
+                    itemsInside: draggable.filter(item => isCollision(item, zone)).map(i => i.id)
+                }
+            })
+        })
     }, [draggable])
 
     return <DndContext.Provider value={{
@@ -175,7 +219,10 @@ const CDndContext = ({ children, useRectsBeforeDrag }: DndContextProps) => {
             ...val,
             itemsInside: []
         }]),
-        addDropzone: val => setDropzones(list => [...list, val]),
+        addDropzone: val => setDropzones(list => [...list, {
+            ...val,
+            itemsInside: []
+        }]),
         removeDraggable: id => setDraggable(list => list.filter(item => item.id != id)),
         removeDropzone: id => setDropzones(list => list.filter(item => item.id != id)),
         updateDraggable: (id, data) => {
@@ -184,8 +231,11 @@ const CDndContext = ({ children, useRectsBeforeDrag }: DndContextProps) => {
                 ...data
             } : item))
         },
-        updateDropzone: val => {
-            setDropzones(list => list.map(item => item.id === val.id ? val : item))
+        updateDropzone: (id, data) => {
+            setDropzones(zone => zone.map(item => item.id === id ? {
+                ...item,
+                ...data
+            } : item))
         },
         setDrag,
         collideActiveWithItems: () => collideActiveWithItems(activeDragElement)
